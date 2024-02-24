@@ -2,9 +2,10 @@ package com.oak443.randomId;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.File;
+import java.io.*;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Properties;
 
 public enum Root {
     INSTANCE;
@@ -15,9 +16,32 @@ public enum Root {
 
     public void boot() {
         initArchive();
+        initPreferences();
         initIconGenerator();
         initNameGenerator();
         initWinUI();
+    }
+
+    private File preferencesFile;
+
+    public void initPreferences() {
+        String userHome = System.getProperty("user.home");
+        preferencesFile = new File(userHome + "/.com.oak443.RandomId/preferences.ini");
+        if (!preferencesFile.exists()) {
+            try {
+                if (!preferencesFile.createNewFile()) throw new Exception();
+                new Properties().store(new FileOutputStream(preferencesFile), null);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        Properties preferences = new Properties();
+        try {
+            preferences.load(new FileInputStream(preferencesFile));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        this.preferences = preferences;
     }
 
     public void initArchive() {
@@ -48,12 +72,19 @@ public enum Root {
     public void initWinUI() {
         try {
             UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        winUI = new WinUI();
+        } catch (Exception ignored) {}
+        WinUI winUI = new WinUI();
         winUI.setVisible(true);
+    }
+
+    private Properties preferences;
+
+    public Properties getPreferences() {
+        return preferences;
+    }
+
+    public void storePreferences() throws IOException {
+        preferences.store(new FileOutputStream(preferencesFile), null);
     }
 
     private File archive;
@@ -72,11 +103,5 @@ public enum Root {
 
     public NameGenerator getNameGenerator() {
         return nameGenerator;
-    }
-
-    private WinUI winUI;
-
-    public WinUI getWinUI() {
-        return winUI;
     }
 }

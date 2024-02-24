@@ -8,12 +8,13 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.Properties;
 
 public class WinUI extends JFrame {{
     setName("WinUI");
     setResizable(false);
     setDefaultCloseOperation(EXIT_ON_CLOSE);
-    setTitle("RandomId 0.2 - WinUI");
+    setTitle("RandomId 0.3 - WinUI");
     setSize(320, 512);
     setLocationRelativeTo(null);
     JTabbedPane tabbedPane = new JTabbedPane() {{
@@ -24,22 +25,28 @@ public class WinUI extends JFrame {{
             JButton icon = new JButton() {{
                 setName("Icon");
                 addActionListener(e -> {
-                        Toolkit toolkit = Toolkit.getDefaultToolkit();
-                        Clipboard clipboard = toolkit.getSystemClipboard();
-                        ImageSelection imageSelection = new ImageSelection(((ImageIcon) getIcon()).getImage());
-                        clipboard.setContents(imageSelection, null);
-                        JLabel label = new JLabel("[Icon] Copied to clipboard!", JLabel.CENTER);
-                        getParent().add(label);
+                    setEnabled(false);
+                    Toolkit toolkit = Toolkit.getDefaultToolkit();
+                    Clipboard clipboard = toolkit.getSystemClipboard();
+                    ImageSelection imageSelection; {
+                        JButton name = (JButton) getParent().getComponent(1);
+                        Image icon = Root.INSTANCE.getIconGenerator().toOutput(name.getText(), 1);
+                        imageSelection = new ImageSelection(icon);
+                    }
+                    clipboard.setContents(imageSelection, null);
+                    JLabel label = new JLabel("[Icon] Copied to clipboard!", JLabel.CENTER);
+                    getParent().add(label);
+                    getParent().revalidate();
+                    getParent().repaint();
+                    new Thread(() -> {
+                        try { Thread.sleep(1024); } catch (InterruptedException ignored) {}
+                        getParent().remove(label);
                         getParent().revalidate();
                         getParent().repaint();
-                        new Thread(() -> {
-                            try { Thread.sleep(1024); } catch (InterruptedException ignored) {}
-                            getParent().remove(label);
-                            getParent().revalidate();
-                            getParent().repaint();
-                        }).start();
-                    });
-                }
+                    }).start();
+                    setEnabled(true);
+                });
+            }
 
                 static class ImageSelection implements Transferable {
                     private final Image image;
@@ -69,6 +76,7 @@ public class WinUI extends JFrame {{
                 setName("Name");
                 setFont(new Font(getFont().getName(), getFont().getStyle(), 32));
                 addActionListener(e -> {
+                    setEnabled(false);
                     Toolkit toolkit = Toolkit.getDefaultToolkit();
                     Clipboard clipboard = toolkit.getSystemClipboard();
                     StringSelection stringSelection = new StringSelection(getText());
@@ -83,6 +91,7 @@ public class WinUI extends JFrame {{
                         getParent().revalidate();
                         getParent().repaint();
                     }).start();
+                    setEnabled(true);
                 });
             }};
             add(name, 1);
@@ -98,6 +107,7 @@ public class WinUI extends JFrame {{
             }};
             add(seed, 2);
             JButton regenerate = new JButton() {{
+                setEnabled(false);
                 setName("Regenerate");
                 setFont(new Font(getFont().getName(), getFont().getStyle(), 18));
                 setText("[ Regenerate ]");
@@ -111,8 +121,9 @@ public class WinUI extends JFrame {{
                         seed.setText("");
                     }
                     JButton icon = (JButton) getParent().getComponent(0);
-                    icon.setIcon(new ImageIcon(Root.INSTANCE.getIconGenerator().fromString(name.getText())));
+                    icon.setIcon(new ImageIcon(Root.INSTANCE.getIconGenerator().toOutput(name.getText(), 1)));
                 });
+                setEnabled(true);
             }};
             add(regenerate, 3);
             JButton archive = new JButton() {{
@@ -127,8 +138,24 @@ public class WinUI extends JFrame {{
                                 + "/" + System.currentTimeMillis() + "_" + name.getText());
                         if (folder.exists()) throw new Exception();
                         if (!folder.mkdir()) throw new Exception();
-                        BufferedImage icon = Root.INSTANCE.getIconGenerator().fromString(name.getText());
-                        ImageIO.write(icon, "png", new File(folder.getPath() + "/icon.png"));
+                        BufferedImage source = Root.INSTANCE.getIconGenerator().fromString(name.getText());
+                        ImageIO.write(source, "png", new File(folder.getPath() + "/source.png"));
+                        BufferedImage output = Root.INSTANCE.getIconGenerator().toOutput(name.getText(), 1);
+                        ImageIO.write(output, "png", new File(folder.getPath() + "/icon.png"));
+                        /**/ {
+                            JTabbedPane tabbedPane = ((JTabbedPane) getParent().getParent());
+                            JPanel preferences = (JPanel) (tabbedPane).getComponentAt(2);
+                            JPanel rate = (JPanel) preferences.getComponent(0);
+                            JComboBox<?> comboBox = (JComboBox<?>) rate.getComponent(1);
+                            String s = (String) (comboBox.getSelectedItem());
+                            assert s != null;
+                            Integer x = Integer.valueOf(s.split("x")[0]);
+                            for (int i = 2; i <= x; i *= 2) {
+                                BufferedImage o = Root.INSTANCE.getIconGenerator().toOutput(name.getText(), i);
+                                File file = new File(folder.getPath() + "/icon" + i + "x.png");
+                                ImageIO.write(o, "png", file);
+                            }
+                        }
                         JLabel label = new JLabel("[Archive] Succeeded!", JLabel.CENTER);
                         getParent().add(label);
                         getParent().revalidate();
@@ -163,22 +190,55 @@ public class WinUI extends JFrame {{
             regenerate.doClick();
         }};
         addTab("Generate", generate);
-        JPanel archive = new JPanel() {{
+        JPanel archives = new JPanel() {{
             setName("Archives");
             JButton openInExplorer = new JButton() {{
                 setName("OpenInExplorer");
                 setText("Open Archive Folder in Explorer");
                 addActionListener(e -> {
+                    setEnabled(false);
                     try {
                         Desktop.getDesktop().open(Root.INSTANCE.getArchive());
                     } catch (IOException ex) {
                         throw new RuntimeException(ex);
                     }
+                    setEnabled(true);
                 });
             }};
             add(openInExplorer);
         }};
-        addTab("Archives", archive);
+        addTab("Archives", archives);
+        JPanel preferences = new JPanel() {{
+            setName("Preferences");
+            JPanel rate = new JPanel() {{
+                setName("Rate");
+                JLabel label = new JLabel("Maximum Avatar Output: ");
+                JComboBox<String> comboBox = new JComboBox<>() {{
+                    addItem("1x");
+                    addItem("2x");
+                    addItem("4x");
+                    addItem("8x(Default)");
+                    addItem("16x");
+                    addItem("32x");
+                    addItem("64x");
+                    addItem("128x");
+                    setSelectedItem(Root.INSTANCE.getPreferences().get("Maximum Avatar Output"));
+                    addActionListener(e -> {
+                        Properties preferences = Root.INSTANCE.getPreferences();
+                        preferences.put("Maximum Avatar Output", getSelectedItem());
+                        try {
+                            Root.INSTANCE.storePreferences();
+                        } catch (IOException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                    });
+                }};
+                add(label, 0);
+                add(comboBox, 1);
+            }};
+            add(rate, 0);
+        }};
+        addTab("Preferences", preferences);
     }};
     setContentPane(tabbedPane);
 }}
