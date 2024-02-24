@@ -48,11 +48,8 @@ public enum Root {
     public void initWinUI() {
         try {
             UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        winUI = new WinUI();
+        } catch (Exception ignored) {}
+        WinUI winUI = new WinUI();
         winUI.setVisible(true);
     }
 
@@ -72,11 +69,5 @@ public enum Root {
 
     public NameGenerator getNameGenerator() {
         return nameGenerator;
-    }
-
-    private WinUI winUI;
-
-    public WinUI getWinUI() {
-        return winUI;
     }
 }
