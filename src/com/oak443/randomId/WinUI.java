@@ -222,6 +222,7 @@ public class WinUI extends JFrame {{
                     addItem("32x");
                     addItem("64x");
                     addItem("128x");
+                    Root.INSTANCE.getPreferences().putIfAbsent("Maximum Avatar Output", "8x(Default)");
                     setSelectedItem(Root.INSTANCE.getPreferences().get("Maximum Avatar Output"));
                     addActionListener(e -> {
                         Properties preferences = Root.INSTANCE.getPreferences();
